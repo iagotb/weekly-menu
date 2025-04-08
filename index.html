@@ -22,13 +22,23 @@
       border-radius: 10px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
   </style>
 </head>
 <body>
   <h1>Weekly Menu</h1>
-  <button onclick="generateAndRenderMenu()">Generate New Menu</button>
+  <div class="buttons">
+    <button onclick="generateAndRenderMenu()">Generate New Menu</button>
+    <button onclick="saveAsPDF()">Save as PDF</button>
+  </div>
   <div id="menu"></div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     const recipes = [
       { name: "Spanish Tortilla", type: "dinner" },
@@ -76,7 +86,36 @@
       localStorage.setItem("weeklyMenu", JSON.stringify(newMenu));
     }
 
-    // Load from storage or generate new menu on first visit
+    function saveAsPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const content = document.getElementById("menu");
+      let y = 10;
+      doc.setFontSize(14);
+      doc.text("Weekly Menu", 105, y, { align: 'center' });
+      y += 10;
+
+      for (const day of content.querySelectorAll(".day")) {
+        const dayName = day.querySelector("h3").textContent;
+        const lunch = day.querySelectorAll("p")[0].textContent;
+        const dinner = day.querySelectorAll("p")[1].textContent;
+
+        doc.setFontSize(12);
+        doc.text(`${dayName}`, 10, y);
+        y += 7;
+        doc.text(lunch, 15, y);
+        y += 7;
+        doc.text(dinner, 15, y);
+        y += 10;
+
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      }
+      doc.save("weekly_menu.pdf");
+    }
+
     const savedMenu = localStorage.getItem("weeklyMenu");
     if (savedMenu) {
       renderMenu(JSON.parse(savedMenu));

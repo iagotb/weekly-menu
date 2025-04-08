@@ -7,20 +7,24 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 800px;
+      max-width: 1200px;
       margin: 2rem auto;
       padding: 1rem;
       background: #f9f9f9;
+      display: flex;
+      gap: 2rem;
     }
     h1 {
       text-align: center;
     }
-    .day {
-      background: white;
+    .sidebar {
+      flex: 1;
+      max-width: 300px;
+      background: #fff;
       padding: 1rem;
-      margin: 1rem 0;
       border-radius: 10px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      height: fit-content;
     }
     .buttons {
       display: flex;
@@ -28,19 +32,68 @@
       gap: 1rem;
       margin-bottom: 2rem;
     }
+    .main-content {
+      flex: 2;
+    }
+    .day {
+      background: white;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      min-height: 100px;
+    }
+    .draggable {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      background: #e0f7fa;
+      border-radius: 5px;
+      cursor: grab;
+    }
+    .dropzone {
+      border: 2px dashed #bbb;
+      padding: 0.5rem;
+      border-radius: 5px;
+      min-height: 2rem;
+    }
+    .add-recipe {
+      margin-top: 1rem;
+    }
+    .add-recipe input, .add-recipe select, .add-recipe button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
-  <h1>Weekly Menu</h1>
-  <div class="buttons">
-    <button onclick="generateAndRenderMenu()">Generate New Menu</button>
-    <button onclick="saveAsPDF()">Save as PDF</button>
+  <div class="sidebar">
+    <h2>Recipes</h2>
+    <div id="recipeList"></div>
+    <div class="add-recipe">
+      <input type="text" id="newRecipeName" placeholder="New recipe name" />
+      <select id="newRecipeType">
+        <option value="lunch">Lunch</option>
+        <option value="dinner">Dinner</option>
+      </select>
+      <button onclick="addNewRecipe()">Add Recipe</button>
+    </div>
   </div>
-  <div id="menu"></div>
+
+  <div class="main-content">
+    <h1>Weekly Menu</h1>
+    <div class="buttons">
+      <button onclick="generateAndRenderMenu()">Generate New Menu</button>
+      <button onclick="saveAsPDF()">Save as PDF</button>
+    </div>
+    <div id="menu"></div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const recipes = [
+    let recipes = [
       { name: "Spanish Tortilla", type: "dinner" },
       { name: "Gazpacho", type: "lunch" },
       { name: "Paella", type: "dinner" },
@@ -65,18 +118,51 @@
       return menu;
     }
 
+    function renderRecipeList() {
+      const list = document.getElementById("recipeList");
+      list.innerHTML = "";
+      recipes.forEach(recipe => {
+        const div = document.createElement("div");
+        div.className = "draggable";
+        div.textContent = recipe.name;
+        div.draggable = true;
+        div.dataset.recipe = recipe.name;
+        div.addEventListener("dragstart", e => {
+          e.dataTransfer.setData("text/plain", recipe.name);
+        });
+        list.appendChild(div);
+      });
+    }
+
     function renderMenu(menu) {
       const menuDiv = document.getElementById("menu");
       menuDiv.innerHTML = "";
       for (const day in menu) {
         const meals = menu[day];
-        menuDiv.innerHTML += `
-          <div class="day">
-            <h3>${day}</h3>
-            <p><strong>Lunch:</strong> ${meals.lunch.name}</p>
-            <p><strong>Dinner:</strong> ${meals.dinner.name}</p>
-          </div>
-        `;
+        const dayDiv = document.createElement("div");
+        dayDiv.className = "day";
+        dayDiv.innerHTML = `<h3>${day}</h3>`;
+
+        ["Lunch", "Dinner"].forEach(type => {
+          const slot = document.createElement("div");
+          slot.className = "dropzone";
+          slot.dataset.type = type.toLowerCase();
+          slot.dataset.day = day;
+          slot.textContent = meals[type.toLowerCase()].name;
+          slot.addEventListener("dragover", e => e.preventDefault());
+          slot.addEventListener("drop", e => {
+            e.preventDefault();
+            const recipeName = e.dataTransfer.getData("text/plain");
+            slot.textContent = recipeName;
+            if (!menu[day]) menu[day] = {};
+            menu[day][type.toLowerCase()] = { name: recipeName };
+            localStorage.setItem("weeklyMenu", JSON.stringify(menu));
+          });
+          dayDiv.appendChild(document.createElement("p")).textContent = `${type}:`;
+          dayDiv.appendChild(slot);
+        });
+
+        menuDiv.appendChild(dayDiv);
       }
     }
 
@@ -84,6 +170,17 @@
       const newMenu = generateWeeklyMenu(recipes);
       renderMenu(newMenu);
       localStorage.setItem("weeklyMenu", JSON.stringify(newMenu));
+    }
+
+    function addNewRecipe() {
+      const nameInput = document.getElementById("newRecipeName");
+      const typeSelect = document.getElementById("newRecipeType");
+      const name = nameInput.value.trim();
+      const type = typeSelect.value;
+      if (!name) return;
+      recipes.push({ name, type });
+      nameInput.value = "";
+      renderRecipeList();
     }
 
     function saveAsPDF() {
@@ -97,8 +194,9 @@
 
       for (const day of content.querySelectorAll(".day")) {
         const dayName = day.querySelector("h3").textContent;
-        const lunch = day.querySelectorAll("p")[0].textContent;
-        const dinner = day.querySelectorAll("p")[1].textContent;
+        const mealText = day.querySelectorAll(".dropzone");
+        const lunch = "Lunch: " + mealText[0].textContent;
+        const dinner = "Dinner: " + mealText[1].textContent;
 
         doc.setFontSize(12);
         doc.text(`${dayName}`, 10, y);
@@ -118,10 +216,12 @@
 
     const savedMenu = localStorage.getItem("weeklyMenu");
     if (savedMenu) {
-      renderMenu(JSON.parse(savedMenu));
+      const parsedMenu = JSON.parse(savedMenu);
+      renderMenu(parsedMenu);
     } else {
       generateAndRenderMenu();
     }
+    renderRecipeList();
   </script>
 </body>
 </html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Menu</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+    }
+    .day {
+      background: white;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>Weekly Menu</h1>
+  <button onclick="generateAndRenderMenu()">Generate New Menu</button>
+  <div id="menu"></div>
+
+  <script>
+    const recipes = [
+      { name: "Spanish Tortilla", type: "dinner" },
+      { name: "Gazpacho", type: "lunch" },
+      { name: "Paella", type: "dinner" },
+      { name: "Salmorejo", type: "lunch" },
+      { name: "Grilled Chicken & Veggies", type: "dinner" },
+      { name: "Quinoa Salad", type: "lunch" },
+      { name: "Lentil Stew", type: "dinner" },
+      { name: "Zucchini Soup", type: "lunch" }
+    ];
+
+    function generateWeeklyMenu(recipes) {
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const lunchRecipes = recipes.filter(r => r.type === "lunch");
+      const dinnerRecipes = recipes.filter(r => r.type === "dinner");
+
+      const menu = {};
+      days.forEach(day => {
+        const lunch = lunchRecipes[Math.floor(Math.random() * lunchRecipes.length)];
+        const dinner = dinnerRecipes[Math.floor(Math.random() * dinnerRecipes.length)];
+        menu[day] = { lunch, dinner };
+      });
+      return menu;
+    }
+
+    function renderMenu(menu) {
+      const menuDiv = document.getElementById("menu");
+      menuDiv.innerHTML = "";
+      for (const day in menu) {
+        const meals = menu[day];
+        menuDiv.innerHTML += `
+          <div class="day">
+            <h3>${day}</h3>
+            <p><strong>Lunch:</strong> ${meals.lunch.name}</p>
+            <p><strong>Dinner:</strong> ${meals.dinner.name}</p>
+          </div>
+        `;
+      }
+    }
+
+    function generateAndRenderMenu() {
+      const newMenu = generateWeeklyMenu(recipes);
+      renderMenu(newMenu);
+      localStorage.setItem("weeklyMenu", JSON.stringify(newMenu));
+    }
+
+    // Load from storage or generate new menu on first visit
+    const savedMenu = localStorage.getItem("weeklyMenu");
+    if (savedMenu) {
+      renderMenu(JSON.parse(savedMenu));
+    } else {
+      generateAndRenderMenu();
+    }
+  </script>
+</body>
+</html>
+
